@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    container_name: linkc-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/linkc
+    depends_on:
+      - db
+    networks:
+      - linkc-network
+
+  frontend:
+    build: ./frontend
+    container_name: linkc-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - linkc-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: linkc-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=linkc
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - linkc-network
+
+networks:
+  linkc-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
