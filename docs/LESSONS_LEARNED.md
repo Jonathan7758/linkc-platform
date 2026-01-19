@@ -13,6 +13,9 @@
 | 2026-01-19 | LL-001 | Pydantic v2验证器语法 | Jonathan |
 | 2026-01-19 | LL-002 | MCP Tool返回值类型 | Jonathan |
 | 2026-01-19 | LL-003 | 异步函数必须await | Jonathan |
+| 2026-01-19 | LL-012 | Docker容器内Python导入路径 | Claude |
+| 2026-01-19 | LL-013 | Docker Compose卷挂载需重建容器 | Claude |
+| 2026-01-19 | LL-014 | PEP 668外部管理Python环境 | Claude |
 
 ---
 
@@ -130,6 +133,92 @@ async def get_robots():
 3. IDE通常会警告 "coroutine was never awaited"
 
 **影响范围**: 所有异步代码
+
+---
+
+### LL-012: Docker容器内Python导入路径问题
+
+**问题描述**: Docker容器内使用 `from backend.app.xxx` 导入失败
+
+**错误信息**:
+```
+ModuleNotFoundError: No module named 'backend'
+```
+
+**原因**: Docker容器的工作目录是 `/app`（对应 `./backend`），不是项目根目录
+
+**错误代码**:
+```python
+# main.py
+from backend.app.api.v1 import router  # ❌ 在容器内找不到 backend
+```
+
+**正确代码**:
+```python
+# main.py
+from app.api.v1 import router  # ✅ 相对于 /app 目录
+```
+
+**关键点**:
+1. 检查 Dockerfile 的 WORKDIR 设置
+2. 检查 docker-compose.yml 的 volumes 挂载
+3. 导入路径应相对于容器内的工作目录
+
+**影响范围**: 所有Docker化的Python服务
+
+---
+
+### LL-013: Docker Compose卷挂载变更需重建容器
+
+**问题描述**: 修改 docker-compose.yml 的 volumes 后，restart 不生效
+
+**错误场景**:
+```bash
+# 修改 docker-compose.yml 添加新的 volume 挂载
+# 然后执行
+docker compose restart backend
+# 结果：新的卷挂载不生效！
+```
+
+**正确做法**:
+```bash
+# 必须使用 --force-recreate 重建容器
+docker compose up -d --force-recreate backend
+```
+
+**原因**: `restart` 只是重启现有容器，不会重新读取配置文件。只有 `up --force-recreate` 或 `down && up` 才会应用新的卷挂载。
+
+**影响范围**: 所有Docker Compose项目
+
+---
+
+### LL-014: PEP 668 Python外部管理环境
+
+**问题描述**: 在新版Linux系统上使用 pip install 报错
+
+**错误信息**:
+```
+error: externally-managed-environment
+× This environment is externally managed
+```
+
+**原因**: Python 3.11+ 遵循 PEP 668，系统Python不允许直接pip安装
+
+**解决方案**:
+```bash
+# 方案1: 使用虚拟环境（推荐）
+python3 -m venv venv
+source venv/bin/activate
+pip install package
+
+# 方案2: 使用 pipx（用于CLI工具）
+pipx install package
+
+# 方案3: 使用 Docker 容器（项目推荐）
+# 在 Dockerfile 中安装依赖，避免污染系统环境
+```
+
+**影响范围**: Debian 12+, Ubuntu 23.04+, 以及其他遵循PEP 668的发行版
 
 ---
 

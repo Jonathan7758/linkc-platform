@@ -12,8 +12,8 @@ sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.api.v1 import router as api_v1_router
-from backend.app.core.config import settings
+from app.api.v1 import router as api_v1_router
+from app.core.config import settings
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -24,7 +24,6 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS 配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -33,36 +32,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 注册 API 路由
 app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
-
 
 @app.get("/")
 async def root():
-    """根路径"""
-    return {
-        "name": settings.PROJECT_NAME,
-        "version": settings.VERSION,
-        "docs": "/docs",
-        "api": settings.API_V1_PREFIX
-    }
-
+    return {"name": settings.PROJECT_NAME, "version": settings.VERSION, "docs": "/docs", "api": settings.API_V1_PREFIX}
 
 @app.get("/health")
 async def health_check():
-    """健康检查"""
     return {"status": "healthy"}
-
-
-@app.get("/api/v1")
-async def api_info():
-    """API 信息"""
-    return {
-        "version": "v1",
-        "endpoints": {
-            "spaces": f"{settings.API_V1_PREFIX}/spaces",
-            "tasks": f"{settings.API_V1_PREFIX}/tasks",
-            "robots": f"{settings.API_V1_PREFIX}/robots",
-            "agents": f"{settings.API_V1_PREFIX}/agents",
-        }
-    }
