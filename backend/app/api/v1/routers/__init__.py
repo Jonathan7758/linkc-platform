@@ -1,19 +1,17 @@
 """
-API v1 模块
+API v1 路由模块
 """
 
-from fastapi import APIRouter
 from backend.app.api.v1.routers.spaces import router as spaces_router
 from backend.app.api.v1.routers.tasks import router as tasks_router
 from backend.app.api.v1.routers.robots import router as robots_router
 from backend.app.api.v1.routers.agents import router as agents_router
 from backend.app.api.v1.routers.websocket import router as ws_router
 
-router = APIRouter()
-
-# 注册所有路由
-router.include_router(spaces_router)
-router.include_router(tasks_router)
-router.include_router(robots_router)
-router.include_router(agents_router)
-router.include_router(ws_router)
+__all__ = [
+    "spaces_router",
+    "tasks_router", 
+    "robots_router",
+    "agents_router",
+    "ws_router",
+]
