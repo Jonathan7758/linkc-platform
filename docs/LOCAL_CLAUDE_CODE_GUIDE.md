@@ -2,7 +2,7 @@
 
 ## 给本地Claude Code使用的开发上下文包
 
-**日期**: 2026年1月19日
+**日期**: 2026年1月20日
 **当前阶段**: Week 1-2（基础设施 + MCP Server）
 
 ---
@@ -25,6 +25,7 @@ LinkC是物业机器人协同平台MVP，核心功能：
 ├── FastAPI (API层)
 ├── Pydantic v2 (数据验证)
 ├── PostgreSQL + Redis (存储)
+├── python-jose + passlib (认证)
 └── asyncio (异步)
 
 前端:
@@ -38,8 +39,12 @@ LinkC是物业机器人协同平台MVP，核心功能：
 ```
 Week 1-2 目标:
 ├── F1-F4 基础设施模块
-├── M1 空间管理MCP Server ✅ 规格书完成
-├── M2 任务管理MCP Server ✅ 规格书完成
+│   ├── F1 数据模型         ✅ 完成
+│   ├── F2 共享工具         ✅ 完成 (logging.py)
+│   ├── F3 配置管理         ✅ 完成 (config.py)
+│   └── F4 认证授权         ✅ 规格书完成
+├── M1 空间管理MCP Server   ✅ 规格书完成
+├── M2 任务管理MCP Server   ✅ 规格书完成
 └── M3 高仙机器人MCP Server ✅ 规格书完成
 ```
 
@@ -51,26 +56,41 @@ Week 1-2 目标:
 linkc-platform/
 ├── CLAUDE.md                 # Claude Code项目指令
 ├── docs/
+│   ├── ARCHITECTURE.md      # 系统架构
 │   ├── LESSONS_LEARNED.md   # 问题知识库
+│   ├── LOCAL_CLAUDE_CODE_GUIDE.md  # 本文件
 │   └── specs/               # 规格书
-│       ├── M1-space-mcp.md
-│       ├── M2-task-mcp.md
-│       └── M3-gaoxian-mcp.md
+│       ├── F4-auth.md       # 认证授权规格书
+│       ├── M2-task-mcp.md   # 任务管理MCP规格书
+│       └── M3-gaoxian-mcp.md # 高仙机器人MCP规格书
 ├── interfaces/              # 接口定义
 │   ├── data_models.py
 │   ├── mcp_tools.py
 │   ├── api_schemas.py
 │   ├── agent_protocols.py
 │   └── events.py
-├── shared/                  # 共享模块
-│   ├── config.py           # F3
-│   ├── auth.py             # F4
-│   └── utils.py            # F2
-└── src/
-    └── mcp_servers/
-        ├── space_manager/   # M1
-        ├── task_manager/    # M2
-        └── robot_gaoxian/   # M3
+├── src/
+│   ├── shared/              # 共享模块
+│   │   ├── config.py        # F3 配置管理 ✅
+│   │   ├── logging.py       # F2 日志系统 ✅
+│   │   ├── exceptions.py    # F3 异常处理 ✅
+│   │   ├── error_handlers.py # F3 错误处理器 ✅
+│   │   └── auth/            # F4 认证授权 (待实现)
+│   │       ├── models.py
+│   │       ├── jwt.py
+│   │       ├── password.py
+│   │       ├── dependencies.py
+│   │       └── permissions.py
+│   ├── mcp_servers/
+│   │   ├── space_manager/   # M1
+│   │   ├── task_manager/    # M2
+│   │   └── robot_gaoxian/   # M3
+│   └── agents/
+│       ├── runtime/         # A1 Agent运行时
+│       └── cleaning_scheduler/ # A2 清洁调度Agent
+└── backend/                 # FastAPI后端
+    └── app/
+        └── api/v1/routers/
 ```
 
 ---
@@ -132,6 +152,26 @@ class CleaningTask(BaseModel):
     assigned_robot_id: Optional[UUID]
 ```
 
+## 3.4 用户模型 (F4)
+
+```python
+class UserRole(str, Enum):
+    SUPER_ADMIN = "super_admin"    # 超级管理员
+    TENANT_ADMIN = "tenant_admin"  # 租户管理员
+    MANAGER = "manager"            # 运营经理
+    TRAINER = "trainer"            # 训练师
+    OPERATOR = "operator"          # 操作员
+    VIEWER = "viewer"              # 只读用户
+
+class User(BaseModel):
+    user_id: UUID
+    tenant_id: UUID
+    username: str
+    email: EmailStr
+    role: UserRole
+    permissions: List[str]
+```
+
 ---
 
 # 四、MCP Tool返回格式
@@ -179,8 +219,8 @@ src/mcp_servers/task_manager/
     └── test_tools.py
 
 ## 核心要求
-1. 实现10个Tools: task_list_schedules, task_get_schedule, task_create_schedule, 
-   task_update_schedule, task_list_tasks, task_get_task, task_create_task, 
+1. 实现10个Tools: task_list_schedules, task_get_schedule, task_create_schedule,
+   task_update_schedule, task_list_tasks, task_get_task, task_create_task,
    task_update_status, task_get_pending_tasks, task_generate_daily_tasks
 2. 任务状态机: pending → assigned → in_progress → completed/failed
 3. 状态流转验证完整
@@ -223,7 +263,7 @@ src/mcp_servers/robot_gaoxian/
 ## 核心要求
 1. 实现12个Tools: robot_list_robots, robot_get_robot, robot_get_status,
    robot_batch_get_status, robot_start_task, robot_pause_task, robot_resume_task,
-   robot_cancel_task, robot_go_to_location, robot_go_to_charge, 
+   robot_cancel_task, robot_go_to_location, robot_go_to_charge,
    robot_get_errors, robot_clear_error
 2. Mock模拟器必须完整可用
 3. 启动任务前检查：状态、电量、故障
@@ -244,7 +284,44 @@ src/mcp_servers/robot_gaoxian/
 请先生成 mock_client.py，这是开发测试的基础
 ```
 
-## 5.3 继续开发/修复Bug
+## 5.3 开发F4认证授权模块
+
+```
+开发 F4 认证授权模块
+
+## 参考文档
+请参考规格书 docs/specs/F4-auth.md
+
+## 项目上下文
+- 这是LinkC物业机器人协同平台的MVP项目
+- 需要支持JWT认证和RBAC权限控制
+- 支持多租户数据隔离
+
+## 要实现的文件
+src/shared/auth/
+├── __init__.py
+├── models.py          # User, TokenPayload等模型
+├── jwt.py             # JWT生成和验证
+├── password.py        # 密码哈希
+├── dependencies.py    # FastAPI依赖注入
+└── permissions.py     # 权限定义
+
+backend/app/api/v1/routers/
+├── auth.py            # 登录/登出/刷新
+└── users.py           # 用户CRUD
+
+## 核心要求
+1. JWT Token生成和验证
+2. 密码bcrypt哈希
+3. 6种用户角色权限映射
+4. FastAPI依赖注入装饰器
+5. 多租户数据隔离
+
+## MVP简化
+可先实现核心功能，登录锁定/Token黑名单等可后续添加
+```
+
+## 5.4 继续开发/修复Bug
 
 ```
 继续开发 [模块名称]
@@ -263,28 +340,6 @@ src/mcp_servers/robot_gaoxian/
 - 如果遇到问题，记录到LESSONS_LEARNED.md
 ```
 
-## 5.4 修复错误
-
-```
-修复以下问题：
-
-## 错误信息
-```
-[粘贴完整错误堆栈]
-```
-
-## 相关文件
-[文件路径]
-
-## 期望行为
-[描述正确的行为]
-
-## 要求
-1. 分析根因
-2. 修复代码
-3. 如果是通用问题，建议添加到 LESSONS_LEARNED.md
-```
-
 ---
 
 # 六、已知问题和解决方案
@@ -298,7 +353,7 @@ src/mcp_servers/robot_gaoxian/
 def validate_name(cls, v):
     return v
 
-# ✅ 正确（v2语法）  
+# ✅ 正确（v2语法）
 @field_validator('name')
 @classmethod
 def validate_name(cls, v):
@@ -320,31 +375,64 @@ return [TextContent(type="text", text=json.dumps(result.model_dump()))]
 await asyncio.sleep(0.1)
 ```
 
+## LL-012: Docker容器内Python导入路径
+```python
+# ❌ 错误（容器内找不到backend）
+from backend.app.api.v1 import router
+
+# ✅ 正确（相对于/app目录）
+from app.api.v1 import router
+```
+
+## LL-013: Docker Compose卷挂载需重建容器
+```bash
+# restart不会应用新的卷挂载
+docker compose restart backend  # ❌
+
+# 必须使用force-recreate
+docker compose up -d --force-recreate backend  # ✅
+```
+
 ---
 
 # 七、开发顺序建议
 
 ```
-Day 5-6: 
-├── 1. 创建项目脚手架目录结构
-├── 2. 实现shared/（F2-F3）
-├── 3. 开始M2 storage.py
+Day 5-6 (当前):
+├── 1. 创建项目脚手架目录结构    ✅
+├── 2. 实现shared/（F1-F3）     ✅
+├── 3. F4规格书                 ✅
+├── 4. 开始M2 storage.py        ← 下一步
 
 Day 7-8:
-├── 4. 完成M2 tools.py
-├── 5. 完成M2 server.py
-├── 6. M2单元测试
+├── 5. 完成M2 tools.py
+├── 6. 完成M2 server.py
+├── 7. M2单元测试
 
 Day 9-10:
-├── 7. M3 mock_client.py
-├── 8. M3 storage.py + tools.py
-├── 9. M3 server.py
-└── 10. M3单元测试
+├── 8. M3 mock_client.py
+├── 9. M3 storage.py + tools.py
+├── 10. M3 server.py
+└── 11. M3单元测试
+
+Day 11-12:
+├── 12. F4 auth模块实现
+├── 13. API认证集成
+└── 14. 用户管理接口
 ```
 
 ---
 
 # 八、验收检查清单
+
+## F4认证授权模块
+
+- [ ] JWT Token生成/验证
+- [ ] 密码哈希bcrypt
+- [ ] 6种角色权限映射
+- [ ] FastAPI依赖注入
+- [ ] 多租户隔离
+- [ ] 登录/登出API
 
 ## M2任务管理MCP Server
 
@@ -365,6 +453,16 @@ Day 9-10:
 
 ---
 
-**祝开发顺利！🚀**
+# 九、规格书目录
+
+| 文件 | 模块 | 说明 |
+|-----|------|------|
+| `docs/specs/F4-auth.md` | F4 | 认证授权模块规格书 |
+| `docs/specs/M2-task-mcp.md` | M2 | 任务管理MCP Server规格书 |
+| `docs/specs/M3-gaoxian-mcp.md` | M3 | 高仙机器人MCP Server规格书 |
+
+---
+
+**祝开发顺利！**
 
 如有问题，请更新 LESSONS_LEARNED.md 并同步到团队。
