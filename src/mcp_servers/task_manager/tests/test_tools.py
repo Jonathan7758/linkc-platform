@@ -7,12 +7,7 @@ import pytest
 import asyncio
 from datetime import datetime, date, timedelta
 
-# 直接导入模块（测试时需要调整路径）
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from storage import (
+from src.mcp_servers.task_manager.storage import (
     InMemoryTaskStorage,
     CleaningSchedule,
     CleaningTask,
@@ -21,7 +16,7 @@ from storage import (
     CleaningFrequency,
     TimeSlot
 )
-from tools import TaskTools, ToolResult, VALID_TRANSITIONS
+from src.mcp_servers.task_manager.tools import TaskTools, ToolResult, VALID_TRANSITIONS
 
 
 # ============================================================
