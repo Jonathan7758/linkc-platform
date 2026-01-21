@@ -10,9 +10,9 @@
 | 项目 | 值 |
 |------|-----|
 | **当前周** | Week 2 |
-| **总体进度** | 20% |
-| **当前里程碑** | MS1 - MCP Server可运行 (85%) |
-| **最后更新** | 2026-01-20 |
+| **总体进度** | 30% |
+| **当前里程碑** | MS1 - MCP Server可运行 (95%) |
+| **最后更新** | 2026-01-21 |
 
 ### 开始工作前，请先查看:
 1. **开发进度**: `docs/PROGRESS.md` - 查看当前任务状态
@@ -77,14 +77,14 @@
 ### Layer 2: 数据平台
 | 模块 | 名称 | 规格书 | 代码 | 计划周 |
 |------|------|--------|------|--------|
-| D1 | 数据采集引擎 | `specs/data/D1-data-collector.md` | ⬜ | W5 |
+| D1 | 数据采集引擎 | `specs/data/D1-data-collector.md` | ✅ 100% | ✅ 15测试 |
 | D2 | 数据存储服务 | `specs/data/D2-data-storage.md` | ⬜ | W5-6 |
 | D3 | 数据查询API | `specs/data/D3-data-query.md` | ⬜ | W8 |
 
 ### Layer 3: Agent
 | 模块 | 名称 | 规格书 | 代码 | 计划周 |
 |------|------|--------|------|--------|
-| A1 | Agent运行时 | `specs/agent/A1-agent-runtime.md` | ⬜ | W6 |
+| A1 | Agent运行时 | `specs/agent/A1-agent-runtime.md` | ✅ 100% | ✅ 23测试 |
 | A2 | 清洁调度 | `specs/agent/A2-cleaning-scheduler.md` | ⬜ | W7 |
 | A3 | 对话助手 | `specs/agent/A3-conversation-agent.md` | ⬜ | W8 |
 | A4 | 数据采集 | `specs/agent/A4-data-collection-agent.md` | ⬜ | W6 |
