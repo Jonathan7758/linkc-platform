@@ -66,9 +66,9 @@ class ConversationAgentConfig(BaseModel):
     tenant_id: str
     
     # LLM配置
-    llm_provider: str = "claude"
+    llm_provider: str = "volcengine"
     llm_api_key: str = ""
-    llm_model: str = "claude-sonnet-4-20250514"
+    llm_model: str = "doubao-1-5-pro-32k-250115"
     llm_base_url: Optional[str] = None
     
     # 对话配置

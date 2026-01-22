@@ -14,6 +14,7 @@ class LLMProvider(str, Enum):
     DEEPSEEK = "deepseek"
     QWEN = "qwen"
     OPENAI = "openai"
+    VOLCENGINE = "volcengine"
 
 
 class LLMConfig(BaseModel):

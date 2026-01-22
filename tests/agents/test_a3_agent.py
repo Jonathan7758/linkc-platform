@@ -61,7 +61,7 @@ class TestConversationAgentConfig:
     def test_default_config(self):
         config = ConversationAgentConfig(tenant_id="test", llm_api_key="key")
         assert config.agent_id == "conversation-agent"
-        assert config.llm_provider == "claude"
+        assert config.llm_provider == "volcengine"
 
     def test_custom_config(self):
         config = ConversationAgentConfig(agent_id="custom", tenant_id="test", llm_api_key="key", max_history_turns=10)

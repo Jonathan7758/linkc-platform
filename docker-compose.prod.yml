@@ -1,0 +1,372 @@
+# LinkC Platform - Production Docker Compose
+# ==========================================
+# Production-ready deployment configuration
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Environment variables required:
+#   - POSTGRES_PASSWORD
+#   - JWT_SECRET
+#   - VOLCENGINE_API_KEY
+#   - DOMAIN_NAME
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # Reverse Proxy / Load Balancer
+  # ==========================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: linkc-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - linkc-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Frontend (React)
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: linkc-frontend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=/api
+      - VITE_WS_URL=/ws
+    networks:
+      - linkc-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Backend API (FastAPI)
+  # ==========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: linkc-backend
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linkc}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=60
+      - VOLCENGINE_API_KEY=${VOLCENGINE_API_KEY}
+      - VOLCENGINE_MODEL=doubao-pro-32k
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - linkc-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # MCP Servers
+  # ==========================================================================
+  mcp-space:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mcp
+    container_name: linkc-mcp-space
+    restart: always
+    command: ["python", "-m", "src.mcp_servers.space_manager.server"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linkc}
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  mcp-task:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mcp
+    container_name: linkc-mcp-task
+    restart: always
+    command: ["python", "-m", "src.mcp_servers.task_manager.server"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linkc}
+      - REDIS_URL=redis://redis:6379/2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  mcp-robot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mcp
+    container_name: linkc-mcp-robot
+    restart: always
+    command: ["python", "-m", "src.mcp_servers.robot_gaoxian.server"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linkc}
+      - REDIS_URL=redis://redis:6379/3
+      - GAOXIAN_API_URL=${GAOXIAN_API_URL:-https://api.gaoxian.com}
+      - GAOXIAN_API_KEY=${GAOXIAN_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ==========================================================================
+  # Agent Runtime
+  # ==========================================================================
+  agent-runtime:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.agent
+    container_name: linkc-agent-runtime
+    restart: always
+    command: ["python", "-m", "src.agents.runtime.server"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linkc}
+      - REDIS_URL=redis://redis:6379/4
+      - VOLCENGINE_API_KEY=${VOLCENGINE_API_KEY}
+      - VOLCENGINE_MODEL=doubao-pro-32k
+      - MCP_SPACE_URL=http://mcp-space:8001
+      - MCP_TASK_URL=http://mcp-task:8002
+      - MCP_ROBOT_URL=http://mcp-robot:8003
+    depends_on:
+      - mcp-space
+      - mcp-task
+      - mcp-robot
+      - postgres
+      - redis
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # ==========================================================================
+  # Data Collector
+  # ==========================================================================
+  data-collector:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.collector
+    container_name: linkc-data-collector
+    restart: always
+    command: ["python", "-m", "src.data.collector.service"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linkc}
+      - REDIS_URL=redis://redis:6379/5
+      - COLLECTION_INTERVAL=60
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: timescale/timescaledb:2.14.2-pg16
+    container_name: linkc-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-linkc}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-linkc}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - linkc-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-linkc} -d ${POSTGRES_DB:-linkc}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # Redis Cache
+  # ==========================================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: linkc-redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - linkc-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # Monitoring - Prometheus
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: linkc-prometheus
+    restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # Monitoring - Grafana
+  # ==========================================================================
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: linkc-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ==========================================================================
+  # Log Aggregation - Loki
+  # ==========================================================================
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: linkc-loki
+    restart: always
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - linkc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  linkc-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
