@@ -5,7 +5,7 @@ services:
     build: ./backend
     container_name: linkc-backend
     ports:
-      - "8000:8000"
+      - "8002:8000"
     volumes:
       - ./backend:/app
       - ./src:/app/src

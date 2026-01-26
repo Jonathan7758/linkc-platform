@@ -1,3 +1,72 @@
+# ECIS Property Service
+
+> **原项目名称**: LinkC Platform  
+> **ECIS 角色**: Property Service（物业机器人服务）  
+> **更新日期**: 2026-01-26
+
+---
+
+## 项目信息
+
+| 项目 | 值 |
+|------|-----|
+| 项目路径 | `/root/projects/ecis/ecis-property-service` |
+| 协议路径 | `/root/projects/ecis/ecis-protocols` |
+| 兼容路径 | `/root/projects/linkc-platform` (软链接) |
+
+## ECIS 协议集成
+
+### 开发前必读 ⚠️
+
+在开发以下功能前，**必须先阅读对应协议文档**：
+
+| 功能类型 | 阅读命令 |
+|---------|---------|
+| Agent 开发 | `cat /root/projects/ecis/ecis-protocols/docs/agent-interfaces.md` |
+| 跨系统通信 | `cat /root/projects/ecis/ecis-protocols/docs/federation-protocol.md` |
+| 数据模型 | `cat /root/projects/ecis/ecis-protocols/docs/data-models.md` |
+
+### Python 包使用
+
+协议包位置: `/root/projects/ecis/ecis-protocols/reference/python`
+
+**使用方法**:
+
+```python
+import sys
+sys.path.insert(0, "/root/projects/ecis/ecis-protocols/reference/python")
+
+# Agent 接口
+from ecis_protocols.agents import (
+    RobotAgentInterface,
+    AgentIdentity,
+    AgentStatus
+)
+
+# Federation 协议
+from ecis_protocols.federation import (
+    ECISEvent,
+    EventTypes
+)
+
+# 共享模型
+from ecis_protocols.models import (
+    Task, Robot, Building
+)
+```
+
+### Robot Agent 实现要求
+
+本项目的 Robot Agent 应参考 `RobotAgentInterface` 实现。
+
+---
+
+## 原有文档内容
+
+> 以下内容来自原 LinkC Platform CLAUDE.md
+
+---
+
 # LinkC Platform - Claude 开发指南
 
 > 此文件由Claude Code自动读取，作为项目上下文。
