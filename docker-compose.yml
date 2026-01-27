@@ -3,7 +3,7 @@ version: "3.8"
 services:
   backend:
     build: ./backend
-    container_name: linkc-backend
+    container_name: ecis-robot-backend
     ports:
       - "8002:8000"
     volumes:
@@ -11,16 +11,16 @@ services:
       - ./src:/app/src
       - ./interfaces:/app/interfaces
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/linkc
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ecis_robot
       - PYTHONPATH=/app
     depends_on:
       - db
     networks:
-      - linkc-network
+      - ecis-network
 
   frontend:
     build: ./frontend
-    container_name: linkc-frontend
+    container_name: ecis-robot-frontend
     ports:
       - "5173:5173"
     volumes:
@@ -29,25 +29,25 @@ services:
     depends_on:
       - backend
     networks:
-      - linkc-network
+      - ecis-network
 
   db:
     image: postgres:15-alpine
-    container_name: linkc-db
+    container_name: ecis-robot-db
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=linkc
+      - POSTGRES_DB=ecis_robot
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ecis_postgres_data:/var/lib/postgresql/data
     networks:
-      - linkc-network
+      - ecis-network
 
 networks:
-  linkc-network:
+  ecis-network:
     driver: bridge
 
 volumes:
-  postgres_data:
+  ecis_postgres_data:

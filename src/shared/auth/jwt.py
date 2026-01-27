@@ -13,7 +13,7 @@ from .models import User, TokenPayload
 from .permissions import get_user_permissions
 
 # 配置 - 从环境变量读取
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "linkc-platform-dev-secret-key-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "ecis-robot-dev-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))

@@ -176,7 +176,7 @@ def log_execution_time(logger: Optional[LinkCLogger] = None, level: str = "info"
     return decorator
 
 
-default_logger = get_logger("linkc", "INFO", "text")
+default_logger = get_logger("ecis_robot", "INFO", "text")
 
 __all__ = [
     "LinkCLogger", "get_logger", "set_request_context", "clear_request_context",

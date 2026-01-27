@@ -21,7 +21,7 @@ from .exceptions import (
 from .logging import get_logger, set_request_context, clear_request_context
 
 
-logger = get_logger("linkc.error_handler")
+logger = get_logger("ecis_robot.error_handler")
 
 
 # 异常到HTTP状态码映射

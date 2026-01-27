@@ -12,7 +12,7 @@ from src.mcp_servers.robot_control.tools import RobotControlTools
 from src.mcp_servers.robot_control.storage import RobotStorage
 
 
-app = Server("linkc-robot-control")
+app = Server("ecis-robot-robot-control")
 storage = RobotStorage()
 tools = RobotControlTools(storage)
 

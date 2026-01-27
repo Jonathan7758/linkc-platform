@@ -304,7 +304,7 @@ async def upload_floor_map(
     """
     # 简化实现：直接使用文件名作为URL
     # 生产环境应上传到对象存储
-    map_url = f"https://storage.linkc.com/maps/{current_user.tenant_id}/{floor_id}/map.pgm"
+    map_url = f"https://storage.ecis-robot.local/maps/{current_user.tenant_id}/{floor_id}/map.pgm"
 
     result = await space_service.upload_floor_map(
         floor_id=floor_id,

@@ -464,7 +464,7 @@ class DataService:
         # 模拟完成
         if export["status"] == ExportStatus.PROCESSING.value:
             export["status"] = ExportStatus.COMPLETED.value
-            export["download_url"] = f"https://storage.linkc.com/exports/{export_id}.xlsx"
+            export["download_url"] = f"https://storage.ecis-robot.local/exports/{export_id}.xlsx"
             export["expires_at"] = datetime.now(timezone.utc) + timedelta(hours=24)
             export["file_size"] = 256000
 

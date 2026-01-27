@@ -35,7 +35,7 @@ class DatabaseConfig(BaseSettings):
     PORT: int = Field(default=5432, alias="DB_PORT")
     USER: str = Field(default="postgres", alias="DB_USER")
     PASSWORD: str = Field(default="postgres", alias="DB_PASSWORD")
-    NAME: str = Field(default="linkc", alias="DB_NAME")
+    NAME: str = Field(default="ecis_robot", alias="DB_NAME")
     POOL_SIZE: int = Field(default=10, alias="DB_POOL_SIZE")
     MAX_OVERFLOW: int = Field(default=20, alias="DB_MAX_OVERFLOW")
     
@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     """主配置类"""
     
     # 基础配置
-    PROJECT_NAME: str = Field(default="LinkC Platform")
+    PROJECT_NAME: str = Field(default="ECIS Service Robot")
     VERSION: str = Field(default="0.1.0")
     ENVIRONMENT: Environment = Field(default=Environment.DEVELOPMENT, alias="ENV")
     DEBUG: bool = Field(default=False)

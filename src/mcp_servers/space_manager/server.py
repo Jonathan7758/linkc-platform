@@ -13,7 +13,7 @@ from src.mcp_servers.space_manager.storage import SpaceStorage
 
 
 # 创建 MCP Server 实例
-app = Server("linkc-space-manager")
+app = Server("ecis-robot-space-manager")
 
 # 存储层
 storage = SpaceStorage()

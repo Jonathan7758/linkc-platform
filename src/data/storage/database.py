@@ -26,7 +26,7 @@ class DatabaseConfig:
         postgres_port: int = 5432,
         postgres_user: str = "postgres",
         postgres_password: str = "",
-        postgres_database: str = "linkc",
+        postgres_database: str = "ecis_robot",
 
         # 连接池配置
         pool_size: int = 20,

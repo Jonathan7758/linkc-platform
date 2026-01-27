@@ -12,10 +12,11 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # 忽略 .env 中未定义的额外字段
     )
 
     # 项目基础配置
-    PROJECT_NAME: str = "LinkC Platform"
+    PROJECT_NAME: str = "ECIS Service Robot"
     VERSION: str = "1.0.0"
     API_V1_PREFIX: str = "/api/v1"
     
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
     ]
     
     # 应用配置
-    app_name: str = "LinkC Platform"
+    app_name: str = "ECIS Service Robot"
     app_env: str = "development"
     debug: bool = True
 
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
     db_port: int = 5432
     db_user: str = "postgres"
     db_password: str = "postgres"
-    db_name: str = "linkc"
+    db_name: str = "ecis_robot"
 
     # Redis配置
     redis_host: str = "localhost"

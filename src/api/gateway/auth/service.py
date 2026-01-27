@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AuthConfig:
     """认证配置"""
-    secret_key: str = "linkc-platform-secret-key-change-in-production"
+    secret_key: str = "ecis-robot-secret-key-change-in-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
-    password_salt: str = "linkc-salt"
+    password_salt: str = "ecis-salt"
 
 
 # ============================================================
@@ -190,9 +190,9 @@ class InMemoryAuthStorage:
         self.users["user-admin"] = UserInDB(
             id="user-admin",
             tenant_id="tenant_001",
-            username="admin@linkc.com",
+            username="admin@ecis-robot.local",
             name="系统管理员",
-            email="admin@linkc.com",
+            email="admin@ecis-robot.local",
             role_id="role-admin",
             status=UserStatus.ACTIVE,
             hashed_password=PasswordHelper.hash_password("admin123"),

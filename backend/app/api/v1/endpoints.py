@@ -4,12 +4,12 @@ router = APIRouter()
 
 @router.get("/")
 async def root():
-    return {"message": "Welcome to LinkC Platform API"}
+    return {"message": "Welcome to ECIS Service Robot API"}
 
 @router.get("/info")
 async def info():
     return {
-        "name": "LinkC Platform",
-        "version": "0.1.0",
+        "name": "ECIS Service Robot",
+        "version": "1.0.0",
         "status": "running"
     }
