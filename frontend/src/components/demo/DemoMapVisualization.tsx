@@ -910,35 +910,268 @@ export const DemoMapVisualization: React.FC<DemoMapVisualizationProps> = ({
         }
       }
 
-      // Load simulation status
-      const simRes = await fetch(`${API_BASE}/simulation/status`);
+      // Load robots from simulation
+      console.log('DemoMapVisualization: Loading initial robots from', `${API_BASE}/simulation/robots`);
+      const simRes = await fetch(`${API_BASE}/simulation/robots`);
+      console.log('DemoMapVisualization: Response status', simRes.status);
       if (simRes.ok) {
         const simData = await simRes.json();
-        if (simData.robot_states) {
-          setRobots(Object.values(simData.robot_states));
+        console.log('DemoMapVisualization: Got data', simData);
+        if (simData.robots && Array.isArray(simData.robots)) {
+          // Map simulation floor IDs to display floor IDs
+          const mapFloorId = (floorId: string): string => {
+            if (!floorId) return 'floor_001';
+            const floorNum = parseInt(floorId.replace('floor_', ''), 10);
+            if (floorNum <= 5) return 'floor_001';      // 1F 大堂
+            if (floorNum <= 15) return 'floor_002';     // 2F 办公区
+            return 'floor_003';                          // 3F 办公区
+          };
+
+          const mappedRobots = simData.robots.map((r: any) => ({
+            robot_id: r.robot_id,
+            name: r.name,
+            status: r.status,
+            position: {
+              // Normalize coordinates from 0-300 range to 0-100 range
+              x: Math.min(100, Math.max(0, (r.position?.x || 0) / 3)),
+              y: Math.min(100, Math.max(0, (r.position?.y || 0) / 3)),
+              orientation: r.position?.orientation || 0,
+              floor_id: mapFloorId(r.position?.floor_id),
+            },
+            target_position: r.target_position ? {
+              x: Math.min(100, Math.max(0, r.target_position.x / 3)),
+              y: Math.min(100, Math.max(0, r.target_position.y / 3)),
+              orientation: r.target_position.orientation || 0,
+              floor_id: mapFloorId(r.target_position.floor_id),
+            } : undefined,
+            battery_level: r.battery || 100,
+            current_task_id: r.task_id,
+            path: r.path,
+            speed: r.speed || 0.5,
+          }));
+          console.log('DemoMapVisualization: Setting', mappedRobots.length, 'robots');
+          setRobots(mappedRobots);
         }
+      } else {
+        console.error('DemoMapVisualization: Failed to load robots, status', simRes.status);
       }
 
-      // Load zones
-      const zonesRes = await fetch(`${API_BASE}/demo/zones`);
-      if (zonesRes.ok) {
-        const zonesData = await zonesRes.json();
-        if (zonesData.zones) {
-          // Add mock bounds to zones
-          const zonesWithBounds = zonesData.zones.map((zone: any, index: number) => ({
-            ...zone,
-            bounds: {
-              x: (index % 3) * 30 + 5,
-              y: Math.floor(index / 3) * 25 + 5,
-              width: 25,
-              height: 20,
-            },
-            cleaning_status: ['clean', 'in_progress', 'pending', 'dirty'][index % 4],
-            cleaning_frequency: Math.floor(Math.random() * 20),
-          }));
-          setZones(zonesWithBounds);
-        }
-      }
+      // Create realistic floor plan zones for all floors
+      const floorPlanZones: Zone[] = [
+        // ============ 1F 大堂层 ============
+        {
+          id: 'f1_lobby',
+          name: '大堂',
+          zone_type: 'lobby',
+          floor_id: 'floor_001',
+          bounds: { x: 25, y: 30, width: 50, height: 40 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 15,
+        },
+        {
+          id: 'f1_corridor_west',
+          name: '西侧走廊',
+          zone_type: 'corridor',
+          floor_id: 'floor_001',
+          bounds: { x: 2, y: 20, width: 20, height: 60 },
+          cleaning_status: 'in_progress',
+          cleaning_frequency: 12,
+        },
+        {
+          id: 'f1_corridor_east',
+          name: '东侧走廊',
+          zone_type: 'corridor',
+          floor_id: 'floor_001',
+          bounds: { x: 78, y: 20, width: 20, height: 60 },
+          cleaning_status: 'pending',
+          cleaning_frequency: 10,
+        },
+        {
+          id: 'f1_elevator',
+          name: '电梯厅',
+          zone_type: 'elevator',
+          floor_id: 'floor_001',
+          bounds: { x: 40, y: 2, width: 20, height: 25 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 18,
+        },
+        {
+          id: 'f1_reception',
+          name: '接待区',
+          zone_type: 'reception',
+          floor_id: 'floor_001',
+          bounds: { x: 2, y: 2, width: 35, height: 15 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 8,
+        },
+        {
+          id: 'f1_security',
+          name: '安保区',
+          zone_type: 'security',
+          floor_id: 'floor_001',
+          bounds: { x: 63, y: 2, width: 35, height: 15 },
+          cleaning_status: 'pending',
+          cleaning_frequency: 6,
+        },
+        {
+          id: 'f1_entrance',
+          name: '主入口',
+          zone_type: 'entrance',
+          floor_id: 'floor_001',
+          bounds: { x: 35, y: 75, width: 30, height: 23 },
+          cleaning_status: 'in_progress',
+          cleaning_frequency: 20,
+        },
+        {
+          id: 'f1_restroom',
+          name: '洗手间',
+          zone_type: 'restroom',
+          floor_id: 'floor_001',
+          bounds: { x: 2, y: 83, width: 30, height: 15 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 25,
+        },
+        {
+          id: 'f1_utility',
+          name: '设备间',
+          zone_type: 'utility',
+          floor_id: 'floor_001',
+          bounds: { x: 68, y: 83, width: 30, height: 15 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 3,
+        },
+
+        // ============ 2F 办公区 ============
+        {
+          id: 'f2_office_a',
+          name: '办公区A',
+          zone_type: 'office',
+          floor_id: 'floor_002',
+          bounds: { x: 2, y: 2, width: 45, height: 45 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 10,
+        },
+        {
+          id: 'f2_office_b',
+          name: '办公区B',
+          zone_type: 'office',
+          floor_id: 'floor_002',
+          bounds: { x: 53, y: 2, width: 45, height: 45 },
+          cleaning_status: 'pending',
+          cleaning_frequency: 10,
+        },
+        {
+          id: 'f2_corridor',
+          name: '主走廊',
+          zone_type: 'corridor',
+          floor_id: 'floor_002',
+          bounds: { x: 2, y: 50, width: 96, height: 12 },
+          cleaning_status: 'in_progress',
+          cleaning_frequency: 15,
+        },
+        {
+          id: 'f2_meeting_large',
+          name: '大会议室',
+          zone_type: 'meeting',
+          floor_id: 'floor_002',
+          bounds: { x: 2, y: 65, width: 35, height: 33 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 8,
+        },
+        {
+          id: 'f2_meeting_small',
+          name: '小会议室',
+          zone_type: 'meeting',
+          floor_id: 'floor_002',
+          bounds: { x: 40, y: 65, width: 25, height: 15 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 6,
+        },
+        {
+          id: 'f2_pantry',
+          name: '茶水间',
+          zone_type: 'pantry',
+          floor_id: 'floor_002',
+          bounds: { x: 40, y: 83, width: 25, height: 15 },
+          cleaning_status: 'pending',
+          cleaning_frequency: 20,
+        },
+        {
+          id: 'f2_restroom',
+          name: '洗手间',
+          zone_type: 'restroom',
+          floor_id: 'floor_002',
+          bounds: { x: 68, y: 65, width: 30, height: 33 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 25,
+        },
+
+        // ============ 3F 办公区 ============
+        {
+          id: 'f3_open_office',
+          name: '开放办公区',
+          zone_type: 'office',
+          floor_id: 'floor_003',
+          bounds: { x: 2, y: 2, width: 70, height: 55 },
+          cleaning_status: 'in_progress',
+          cleaning_frequency: 12,
+        },
+        {
+          id: 'f3_executive',
+          name: '高管办公室',
+          zone_type: 'executive',
+          floor_id: 'floor_003',
+          bounds: { x: 75, y: 2, width: 23, height: 35 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 5,
+        },
+        {
+          id: 'f3_server_room',
+          name: '机房',
+          zone_type: 'server',
+          floor_id: 'floor_003',
+          bounds: { x: 75, y: 40, width: 23, height: 17 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 2,
+        },
+        {
+          id: 'f3_corridor',
+          name: '走廊',
+          zone_type: 'corridor',
+          floor_id: 'floor_003',
+          bounds: { x: 2, y: 60, width: 96, height: 10 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 14,
+        },
+        {
+          id: 'f3_training',
+          name: '培训室',
+          zone_type: 'training',
+          floor_id: 'floor_003',
+          bounds: { x: 2, y: 73, width: 45, height: 25 },
+          cleaning_status: 'pending',
+          cleaning_frequency: 7,
+        },
+        {
+          id: 'f3_lounge',
+          name: '员工休息区',
+          zone_type: 'lounge',
+          floor_id: 'floor_003',
+          bounds: { x: 50, y: 73, width: 30, height: 25 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 18,
+        },
+        {
+          id: 'f3_restroom',
+          name: '洗手间',
+          zone_type: 'restroom',
+          floor_id: 'floor_003',
+          bounds: { x: 83, y: 60, width: 15, height: 38 },
+          cleaning_status: 'clean',
+          cleaning_frequency: 25,
+        },
+      ];
+      setZones(floorPlanZones);
     } catch (error) {
       console.error('Failed to load initial data:', error);
     }
@@ -1000,35 +1233,67 @@ export const DemoMapVisualization: React.FC<DemoMapVisualizationProps> = ({
     }
   }, []);
 
-  // Fallback polling for updates
+  // Polling for updates
   const pollUpdates = useCallback(async () => {
-    if (isConnected) return; // Skip if WebSocket is connected
-
+    // Always poll (WebSocket disabled for demo stability)
     try {
-      const res = await fetch(`${API_BASE}/simulation/status`);
+      const res = await fetch(`${API_BASE}/simulation/robots`);
       if (res.ok) {
         const data = await res.json();
-        if (data.robot_states) {
-          setRobots(Object.values(data.robot_states));
+        if (data.robots && Array.isArray(data.robots)) {
+          // Map simulation floor IDs to display floor IDs
+          const mapFloorId = (floorId: string): string => {
+            if (!floorId) return 'floor_001';
+            const floorNum = parseInt(floorId.replace('floor_', ''), 10);
+            if (floorNum <= 5) return 'floor_001';      // 1F 大堂
+            if (floorNum <= 15) return 'floor_002';     // 2F 办公区
+            return 'floor_003';                          // 3F 办公区
+          };
+
+          const mappedRobots = data.robots.map((r: any) => ({
+            robot_id: r.robot_id,
+            name: r.name,
+            status: r.status,
+            position: {
+              // Normalize coordinates from 0-300 range to 0-100 range
+              x: Math.min(100, Math.max(0, (r.position?.x || 0) / 3)),
+              y: Math.min(100, Math.max(0, (r.position?.y || 0) / 3)),
+              orientation: r.position?.orientation || 0,
+              floor_id: mapFloorId(r.position?.floor_id),
+            },
+            target_position: r.target_position ? {
+              x: Math.min(100, Math.max(0, r.target_position.x / 3)),
+              y: Math.min(100, Math.max(0, r.target_position.y / 3)),
+              orientation: r.target_position.orientation || 0,
+              floor_id: mapFloorId(r.target_position.floor_id),
+            } : undefined,
+            battery_level: r.battery || 100,
+            current_task_id: r.task_id,
+            path: r.path,
+            speed: r.speed || 0.5,
+          }));
+          setRobots(mappedRobots);
           setLastUpdate(new Date());
         }
       }
     } catch (error) {
       console.error('Failed to poll updates:', error);
     }
-  }, [isConnected]);
+  }, []);
 
   // Initialize
   useEffect(() => {
+    console.log('DemoMapVisualization: Initializing...');
     loadInitialData();
-    connectWebSocket();
+    // Skip WebSocket for now, use polling only
+    // connectWebSocket();
 
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, [loadInitialData, connectWebSocket]);
+  }, [loadInitialData]);
 
   // Polling fallback
   useEffect(() => {
@@ -1056,16 +1321,16 @@ export const DemoMapVisualization: React.FC<DemoMapVisualizationProps> = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, [scale]);
 
-  // Filter robots by floor
+  // Filter robots by selected floor
   const filteredRobots = useMemo(() => {
     if (!selectedFloor) return robots;
-    return robots.filter(r => r.position.floor_id === selectedFloor || !r.position.floor_id);
+    return robots.filter(r => r.position.floor_id === selectedFloor);
   }, [robots, selectedFloor]);
 
   // Filter zones by floor
   const filteredZones = useMemo(() => {
     if (!selectedFloor) return zones;
-    return zones.filter(z => z.floor_id === selectedFloor || !z.floor_id);
+    return zones.filter(z => z.floor_id === selectedFloor);
   }, [zones, selectedFloor]);
 
   // Max cleaning frequency for heatmap

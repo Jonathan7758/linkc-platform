@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Robot } from '../types/index';
-import { getRobots } from '../services/api';
+
+const API_BASE = '/api/v1';
 
 // ============================================================
 // Types
@@ -75,9 +76,9 @@ const RobotMarker: React.FC<RobotMarkerProps> = ({
 }) => {
   const position = robot.position || { x: 0, y: 0, orientation: 0 };
 
-  // Convert robot position to map coordinates
-  const x = (position.x / 100) * mapDimensions.width;
-  const y = (position.y / 100) * mapDimensions.height;
+  // Convert robot position to map coordinates (with 50px margin on each side)
+  const x = (position.x / 100) * (mapDimensions.width - 100) + 50;
+  const y = (position.y / 100) * (mapDimensions.height - 100) + 50;
   const rotation = position.orientation || 0;
 
   return (
@@ -295,14 +296,31 @@ const MapLegend: React.FC = () => {
 // Main Component
 // ============================================================
 
+// Floor options
+const FLOORS = [
+  { id: 'floor_001', name: '1F 大堂' },
+  { id: 'floor_002', name: '2F 办公区' },
+  { id: 'floor_003', name: '3F 办公区' },
+];
+
+// Map simulation floor IDs to display floor IDs
+const mapFloorId = (floorId: string): string => {
+  if (!floorId) return 'floor_001';
+  const floorNum = parseInt(floorId.replace('floor_', ''), 10);
+  if (floorNum <= 5) return 'floor_001';      // 1F 大堂
+  if (floorNum <= 15) return 'floor_002';     // 2F 办公区
+  return 'floor_003';                          // 3F 办公区
+};
+
 export const RobotMap: React.FC<RobotMapProps> = ({
   buildingId,
-  floorId,
+  floorId: initialFloorId,
   onRobotSelect,
-  refreshInterval = 5000,
+  refreshInterval = 2000,
 }) => {
   const [robots, setRobots] = useState<Robot[]>([]);
   const [selectedRobot, setSelectedRobot] = useState<Robot | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<string>(initialFloorId || 'floor_001');
   const [loading, setLoading] = useState(true);
   const [mapDimensions, setMapDimensions] = useState<MapDimensions>({
     width: 800,
@@ -311,21 +329,38 @@ export const RobotMap: React.FC<RobotMapProps> = ({
   });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load robots
+  // Load robots from simulation API
   const loadRobots = useCallback(async () => {
     try {
-      const response = await getRobots({ buildingId });
-      // Filter by floor if specified
-      const filteredRobots = floorId
-        ? response.items.filter((r) => r.position?.floorId === floorId)
-        : response.items;
-      setRobots(filteredRobots);
+      const res = await fetch(`${API_BASE}/simulation/robots`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.robots && Array.isArray(data.robots)) {
+          // Map simulation robots to Robot interface with floor mapping
+          const mappedRobots: Robot[] = data.robots.map((r: any) => ({
+            robotId: r.robot_id,
+            name: r.name,
+            brand: 'Gaussian',
+            model: 'GS-50 Pro',
+            status: r.status || 'idle',
+            batteryLevel: r.battery || 100,
+            position: {
+              x: Math.min(100, Math.max(0, (r.position?.x || 0) / 3)),
+              y: Math.min(100, Math.max(0, (r.position?.y || 0) / 3)),
+              orientation: r.position?.orientation || 0,
+              floorId: mapFloorId(r.position?.floor_id),
+            },
+            currentTaskId: r.task_id,
+          }));
+          setRobots(mappedRobots);
+        }
+      }
     } catch (error) {
       console.error('Failed to load robots:', error);
     } finally {
       setLoading(false);
     }
-  }, [buildingId, floorId]);
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -368,13 +403,17 @@ export const RobotMap: React.FC<RobotMapProps> = ({
     }
   };
 
-  // Calculate stats
+  // Filter robots by selected floor
+  const filteredRobots = robots.filter((r) => r.position?.floorId === selectedFloor);
+
+  // Calculate stats based on filtered robots
   const stats = {
-    total: robots.length,
-    working: robots.filter((r) => r.status === 'working').length,
-    idle: robots.filter((r) => r.status === 'idle').length,
-    charging: robots.filter((r) => r.status === 'charging').length,
-    error: robots.filter((r) => r.status === 'error').length,
+    total: filteredRobots.length,
+    working: filteredRobots.filter((r) => r.status === 'working').length,
+    idle: filteredRobots.filter((r) => r.status === 'idle').length,
+    charging: filteredRobots.filter((r) => r.status === 'charging').length,
+    error: filteredRobots.filter((r) => r.status === 'error').length,
+    maintenance: filteredRobots.filter((r) => r.status === 'maintenance').length,
   };
 
   return (
@@ -383,6 +422,18 @@ export const RobotMap: React.FC<RobotMapProps> = ({
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold">机器人地图</h2>
+          {/* Floor Selector */}
+          <select
+            value={selectedFloor}
+            onChange={(e) => setSelectedFloor(e.target.value)}
+            className="px-3 py-1 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {FLOORS.map((floor) => (
+              <option key={floor.id} value={floor.id}>
+                {floor.name}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-3 text-sm">
             <span className="text-gray-500">
               总数: <span className="font-medium text-gray-900">{stats.total}</span>
@@ -396,6 +447,11 @@ export const RobotMap: React.FC<RobotMapProps> = ({
             <span className="text-yellow-600">
               充电: {stats.charging}
             </span>
+            {stats.maintenance > 0 && (
+              <span className="text-orange-600">
+                维护: {stats.maintenance}
+              </span>
+            )}
             {stats.error > 0 && (
               <span className="text-red-600">
                 故障: {stats.error}
@@ -459,7 +515,7 @@ export const RobotMap: React.FC<RobotMapProps> = ({
               />
 
               {/* Robot markers */}
-              {robots.map((robot) => (
+              {filteredRobots.map((robot) => (
                 <RobotMarker
                   key={robot.robotId}
                   robot={robot}

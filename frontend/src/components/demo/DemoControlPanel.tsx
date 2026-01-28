@@ -203,6 +203,15 @@ const DemoControlPanel: React.FC<DemoControlPanelProps> = ({
     }
   }, [visible, refreshStatus]);
 
+  // Scenario to URL mapping
+  const scenarioRoutes: Record<Scenario, string> = {
+    executive: '/executive',
+    ops_normal: '/operations',
+    ops_alert: '/alerts',
+    agent_chat: '/trainer',
+    full: '/demo/map',
+  };
+
   // Handlers
   const handleSwitchScenario = async (scenario: Scenario) => {
     setLoading(true);
@@ -210,11 +219,19 @@ const DemoControlPanel: React.FC<DemoControlPanelProps> = ({
       // If not active, init first; otherwise switch
       if (!demoStatus?.is_active) {
         await initDemo(scenario);
+        // Also start simulation
+        await startSimulation();
       } else {
         await switchScenario(scenario);
       }
       await refreshStatus();
       setLastEvent(`场景: ${scenario}`);
+
+      // Navigate to the corresponding page
+      const targetRoute = scenarioRoutes[scenario];
+      if (targetRoute && window.location.pathname !== targetRoute) {
+        window.location.href = targetRoute;
+      }
     } finally {
       setLoading(false);
     }
