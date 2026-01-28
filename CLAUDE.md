@@ -5,7 +5,7 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | Task 10 - 移动机器人扩展 |
-| **进度** | 80% |
+| **进度** | 100% ✅ |
 | **最后更新** | 2026-01-28 |
 
 ## 项目路径
@@ -24,7 +24,8 @@
 | agents/robot_dog_agent | ✅ | RobotDogAgent with TaskReceiverMixin |
 | capabilities/drone | ✅ | 5 能力定义 |
 | capabilities/robot_dog | ✅ | 4 能力定义 |
-| tests | ✅ | 44 新增测试全部通过 |
+| integration/mobile_robot | ✅ | MobileRobotIntegration |
+| tests | ✅ | 68 测试全部通过 |
 
 ## 已完成功能
 
@@ -64,13 +65,23 @@
 - 气体传感器读取
 - 紧急停止
 
+### 集成模块 (Integration)
+
+**MobileRobotIntegration**:
+- 统一管理无人机和机器狗 Agent
+- 能力注册到 CapabilityRegistry
+- 支持 Federation Gateway 注册
+- 任务分派和调度
+
 ## 测试统计
 
 | 模块 | 测试数 | 状态 |
 |------|--------|------|
 | test_drone.py | 18 | ✅ |
 | test_robot_dog.py | 26 | ✅ |
-| **总计** | 44 | ✅ |
+| test_mobile_robot_integration.py | 16 | ✅ |
+| test_capabilities/test_registry.py | 8 | ✅ |
+| **总计** | 68 | ✅ |
 
 ## 常用命令
 
@@ -83,12 +94,49 @@ python3 -m pytest tests/adapters/test_drone.py -v
 # 运行机器狗测试
 python3 -m pytest tests/adapters/test_robot_dog.py -v
 
-# 运行所有适配器测试
-python3 -m pytest tests/adapters/ -v
+# 运行集成测试
+python3 -m pytest tests/integration/test_mobile_robot_integration.py -v
+
+# 运行所有 Task 10 相关测试
+python3 -m pytest tests/adapters/ tests/integration/test_mobile_robot_integration.py tests/test_capabilities/ -v
 ```
 
-## 待完成
+## Git 记录
 
-- [ ] Federation 集成
-- [ ] 编排器集成测试
-- [ ] 文档完善
+- commit: `2a77376` - feat(task10): 添加无人机和机器狗扩展模块
+- commit: `8c2fb40` - feat(task10): 添加移动机器人集成模块
+
+## 使用示例
+
+```python
+from src.integration.mobile_robot import (
+    MobileRobotIntegration,
+    MobileRobotConfig,
+    init_mobile_robot_integration,
+)
+
+# 初始化
+config = MobileRobotConfig(
+    drone_count=2,
+    robot_dog_count=2,
+)
+integration = await init_mobile_robot_integration(config)
+
+# 分派无人机巡逻任务
+task_id = await integration.dispatch_task(
+    capability_id=drone.patrol.aerial,
+    parameters={route_id: route-001, altitude_m: 50},
+)
+
+# 分派机器狗检查任务
+task_id = await integration.dispatch_task(
+    capability_id=robotdog.inspection.underground,
+    parameters={area_id: basement-1, gas_detection: True},
+)
+
+# 获取状态
+status = integration.get_status()
+
+# 关闭
+await integration.shutdown()
+```
